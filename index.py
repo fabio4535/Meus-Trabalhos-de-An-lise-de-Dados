@@ -16,7 +16,7 @@ dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates@V1.0.4
 app = dash.Dash(__name__, external_stylesheets=[url_theme1, dbc_css])
 server = app.server
 
-# Configuração visual
+# Configurações de travamento visual (StaticPlot)
 config_travada = {"staticPlot": True, "displayModeBar": False}
 tab_card = {'height': '100%'}
 main_config = {
@@ -25,38 +25,19 @@ main_config = {
     "margin": {"l":0, "r":0, "t":10, "b":0}
 }
 
-# ===== Carregamento OTIMIZADO (A Solução Mágica) ====== #
-# Lista exata das colunas que usamos. O resto é ignorado na leitura.
-colunas_uteis = [
-    ' DATA INICIAL', ' DATA FINAL', 'PREÇO MÉDIO REVENDA', 
-    'PRODUTO', 'ESTADO', 'REGIÃO'
-]
-
+# ===== Carregamento ULTRA LEVE (Leitura do Parquet) ====== #
 try:
-    # usecols=colunas_uteis -> A mágica acontece aqui! Economiza muita memória.
-    df_main = pd.read_csv("data_gas.csv", usecols=colunas_uteis)
-    
-    # Filtra gasolina direto, jogando fora o resto das linhas
-    df_main = df_main[df_main['PRODUTO'] == 'GASOLINA COMUM']
-    
-    # Tratamento
-    df_main.rename(columns={' DATA INICIAL': 'DATA INICIAL', ' DATA FINAL': 'DATA FINAL'}, inplace=True)
-    df_main['DATA INICIAL'] = pd.to_datetime(df_main['DATA INICIAL'], errors='coerce')
-    df_main['DATA FINAL'] = pd.to_datetime(df_main['DATA FINAL'], errors='coerce')
-    df_main['DATA MEDIA'] = ((df_main['DATA FINAL'] - df_main['DATA INICIAL'])/2) + df_main['DATA INICIAL']
-    df_main = df_main.sort_values(by='DATA MEDIA', ascending=True)
-    df_main.rename(columns = {'DATA MEDIA':'DATA'}, inplace = True)
-    df_main.rename(columns = {'PREÇO MÉDIO REVENDA': 'VALOR REVENDA (R$/L)'}, inplace=True)
-    df_main["ANO"] = df_main["DATA"].apply(lambda x: str(x.year) if pd.notnull(x) else "")
-    
-    # Converte para números leves
-    df_main['VALOR REVENDA (R$/L)'] = pd.to_numeric(df_main['VALOR REVENDA (R$/L)'], errors='coerce')
-    
-except Exception as e:
-    print(f"Erro ao ler CSV: {e}")
-    df_main = pd.DataFrame() # Previne crash total
+    # AQUI ESTÁ A DIFERENÇA: Lê o arquivo .parquet (binário leve)
+    df_main = pd.read_parquet("data_gas_otimizado.parquet")
+    # Garante a ordenação
+    df_main = df_main.sort_values(by='DATA', ascending=True)
 
-# Listas para filtros (proteção contra vazio)
+except Exception as e:
+    print(f"Erro ao ler Parquet: {e}")
+    # Cria dataframe vazio para o site não cair se der erro
+    df_main = pd.DataFrame(columns=['ANO', 'REGIÃO', 'ESTADO', 'VALOR REVENDA (R$/L)', 'DATA'])
+
+# Listas para filtros
 anos_disp = sorted(df_main['ANO'].unique()) if not df_main.empty else []
 regioes_disp = df_main['REGIÃO'].unique() if not df_main.empty else []
 estados_disp = df_main['ESTADO'].unique() if not df_main.empty else []
@@ -66,15 +47,15 @@ val_regiao = regioes_disp[0] if len(regioes_disp) > 0 else ""
 val_est1 = estados_disp[0] if len(estados_disp) > 0 else ""
 val_est2 = estados_disp[1] if len(estados_disp) > 1 else ""
 
-# =========  Layout (Real) =========== #
+
+# =========  Layout =========== #
 app.layout = dbc.Container([
-    # Topo
     dbc.Row([
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H4("Gasolina Dashboard (LEVE)", style={"font-weight": "bold"}),
-                    html.P("Agora com dados reais otimizados!"),
+                    html.H4("Gasolina Dashboard", style={"font-weight": "bold"}),
+                    html.P("Versão Final (Parquet)"), # Mudei o texto para você identificar
                     ThemeSwitchAIO(aio_id="theme", themes=[url_theme1, url_theme2]),
                     dbc.Button("Portfólio", href="https://dashboard-fabio-gasolina.onrender.com", target="_blank", size="sm", style={'margin-top': '5px'})
                 ])
@@ -99,7 +80,6 @@ app.layout = dbc.Container([
         ], sm=12, md=6)
     ], className='g-2 my-2'),
 
-    # Gráficos Linha
     dbc.Row([
         dbc.Col([
             dbc.Card([
@@ -125,7 +105,7 @@ app.layout = dbc.Container([
     ], className='g-2 my-2')
 ], fluid=True)
 
-# ======== Callbacks (Mesma Lógica) ========== #
+# ======== Callbacks ========== #
 @app.callback(
     Output('static-maxmin', 'figure'),
     [Input(ThemeSwitchAIO.ids.switch("theme"), "value")]
@@ -150,7 +130,6 @@ def graph1(ano, regiao, toggle):
     if df_main.empty: return go.Figure(), go.Figure()
     
     df_filtered = df_main[df_main.ANO == str(ano)]
-    
     dff_regiao = df_filtered.groupby(['ANO', 'REGIÃO'])['VALOR REVENDA (R$/L)'].mean().reset_index().sort_values('VALOR REVENDA (R$/L)')
     dff_estado = df_filtered[df_filtered.REGIÃO == regiao].groupby(['ANO', 'ESTADO'])['VALOR REVENDA (R$/L)'].mean().reset_index().sort_values('VALOR REVENDA (R$/L)')
 
@@ -161,7 +140,6 @@ def graph1(ano, regiao, toggle):
         fig.update_layout(main_config, height=140, xaxis_title=None, yaxis_title=None, transition={'duration': 0})
         fig.update_xaxes(showticklabels=False)
         fig.update_yaxes(showticklabels=False)
-        
     return fig1, fig2
 
 @app.callback(
@@ -172,7 +150,6 @@ def animation_graph(estados, toggle):
     template = template_theme1 if toggle else template_theme2
     if df_main.empty: return go.Figure()
     if not isinstance(estados, list): estados = [estados]
-    
     mask = df_main.ESTADO.isin(estados)
     fig = px.line(df_main[mask], x='DATA', y='VALOR REVENDA (R$/L)', color='ESTADO', template=template)
     fig.update_layout(main_config, height=350, xaxis_title=None, transition={'duration': 0})
@@ -185,7 +162,6 @@ def animation_graph(estados, toggle):
 def direct_comparison(est1, est2, toggle):
     template = template_theme1 if toggle else template_theme2
     if df_main.empty: return go.Figure()
-    
     df_final = df_main[df_main.ESTADO.isin([est1, est2])]
     fig = px.line(df_final, x='DATA', y='VALOR REVENDA (R$/L)', color='ESTADO', template=template)
     fig.update_layout(main_config, height=350, xaxis_title=None, transition={'duration': 0})

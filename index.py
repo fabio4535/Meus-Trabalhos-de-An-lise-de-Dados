@@ -7,7 +7,6 @@ import pandas as pd
 from dash_bootstrap_templates import ThemeSwitchAIO
 
 # ============ Configurações Iniciais e Temas ============ #
-# Tema Verde (Minty) e Escuro (Slate) para combinar com seu Portfólio
 template_theme1 = "minty"
 template_theme2 = "slate"
 url_theme1 = dbc.themes.MINTY
@@ -89,7 +88,7 @@ app.layout = dbc.Container(children=[
                     ], style={'margin-top': '10px'})
                 ])
             ], style=tab_card)
-        ], sm=12, md=3, lg=2), # Ajustei para md=3
+        ], sm=12, md=3, lg=2),
 
         dbc.Col([
             dbc.Card([
@@ -102,7 +101,7 @@ app.layout = dbc.Container(children=[
                     ])
                 ])
             ], style=tab_card)
-        ], sm=12, md=3, lg=3), # Ajustei para md=3
+        ], sm=12, md=3, lg=3),
 
         dbc.Col([
             dbc.Card([
@@ -139,12 +138,12 @@ app.layout = dbc.Container(children=[
                     ], style={'column-gap': '0px'})
                 ])
             ], style=tab_card)
-        ], sm=12, md=6, lg=7) # Ajustei para md=6
+        ], sm=12, md=6, lg=7)
     ], className='main_row g-2 my-auto', style={'margin-top': '7px'}),
     
     # Row 2 - Gráficos Principais
     dbc.Row([
-        dbc.Col([       
+        dbc.Col([        
             dbc.Card([
                 dbc.CardBody([
                     html.H3('Preço x Estado'),
@@ -164,7 +163,7 @@ app.layout = dbc.Container(children=[
                     dcc.Graph(id='animation_graph', config={"displayModeBar": False, "showTips": False})
                 ])
             ], style=tab_card)
-        ], sm=12, md=5, lg=5), # Ajustei para md=5
+        ], sm=12, md=5, lg=5),
 
         dbc.Col([    
             dbc.Card([
@@ -172,7 +171,7 @@ app.layout = dbc.Container(children=[
                     html.H3('Comparação Direta'),
                     html.H6('Qual preço é menor em um dado período de tempo?'),
                     dbc.Row([
-                        dbc.Col([                                   
+                        dbc.Col([                                    
                             dcc.Dropdown(
                                 id="select_estado1",
                                 value=df_main.at[df_main.index[3],'ESTADO'],
@@ -195,7 +194,7 @@ app.layout = dbc.Container(children=[
                     html.P(id='desc_comparison', style={'color': 'gray', 'font-size': '80%'}),
                 ])
             ], style=tab_card)
-        ], sm=12, md=4, lg=4), # Ajustei para md=4
+        ], sm=12, md=4, lg=4),
 
         dbc.Col([
             dbc.Row([
@@ -216,7 +215,7 @@ app.layout = dbc.Container(children=[
                     ], style=tab_card)
                 ])
             ], justify='center', style={'height': '50%'})
-        ], sm=12, md=3, lg=3, style={'height': '100%'}) # Ajustei para md=3
+        ], sm=12, md=3, lg=3, style={'height': '100%'})
     ], justify='center', className='main_row g-2 my-auto'),
 
     # Row 3 - RangeSlider
@@ -241,8 +240,10 @@ app.layout = dbc.Container(children=[
                             tooltip={'always_visible':False, 'placement':'bottom'},
                         )
                     ], sm=12, md=10, style={'margin-top': '15px'}),
-                    # componente invisivel
-                    dcc.Interval(id='interval', interval=10000),
+                    
+                    # === ATENÇÃO: COMENTEI O INTERVALO AQUI PARA PARAR A ANIMAÇÃO ===
+                    # dcc.Interval(id='interval', interval=10000), 
+                    
                 ], className='g-1', style={'height': '20%', 'justify-content': 'center'})
                 
             ], style=tab_card)
@@ -315,3 +316,89 @@ def graph1(data, ano, regiao, toggle):
     ))
     fig2 = go.Figure(go.Bar(
         x=dff_estado['VALOR REVENDA (R$/L)'],
+        y=dff_estado['ESTADO'], # Corrigi para usar ESTADO no eixo Y, estava REGIÃO antes
+        orientation='h',
+        text=fig2_text,
+        textposition='auto',
+        insidetextanchor='end',
+        insidetextfont=dict(family='Times', size=12)
+    ))
+    
+    # Aplicando temas
+    fig1.update_layout(main_config, height=140, xaxis_title=None, yaxis_title=None, template=template)
+    fig2.update_layout(main_config, height=140, xaxis_title=None, yaxis_title=None, template=template)
+    
+    # Removendo escalas para ficar limpo
+    fig1.update_xaxes(showticklabels=False)
+    fig1.update_yaxes(showticklabels=False)
+    fig2.update_xaxes(showticklabels=False)
+    fig2.update_yaxes(showticklabels=False)
+
+    return fig1, fig2
+
+# Callback para o gráfico de Preço x Estado (Faltava no seu código)
+@app.callback(
+    Output('animation_graph', 'figure'),
+    [Input('dataset', 'data'),
+    Input('select_estados0', 'value'),
+    Input(ThemeSwitchAIO.ids.switch("theme"), "value")]
+)
+def animation_graph(data, estados, toggle):
+    template = template_theme1 if toggle else template_theme2
+    df = pd.DataFrame(data)
+    mask = df.ESTADO.isin(estados)
+    
+    fig = px.line(df[mask], x='DATA', y='VALOR REVENDA (R$/L)', color='ESTADO', template=template)
+    fig.update_layout(main_config, height=400, xaxis_title=None)
+    
+    return fig
+
+# Callback para Comparação Direta (Faltava no seu código)
+@app.callback(
+    [Output('direct_comparison_graph', 'figure'),
+     Output('desc_comparison', 'children')],
+    [Input('dataset', 'data'),
+    Input('select_estado1', 'value'),
+    Input('select_estado2', 'value'),
+    Input(ThemeSwitchAIO.ids.switch("theme"), "value")]
+)
+def direct_comparison(data, est1, est2, toggle):
+    template = template_theme1 if toggle else template_theme2
+    df = pd.DataFrame(data)
+    
+    df1 = df[df.ESTADO == est1]
+    df2 = df[df.ESTADO == est2]
+    df_final = pd.concat([df1, df2])
+    
+    fig = px.line(df_final, x='DATA', y='VALOR REVENDA (R$/L)', color='ESTADO', template=template)
+    fig.update_layout(main_config, height=400, xaxis_title=None)
+    
+    val1 = df1['VALOR REVENDA (R$/L)'].iloc[-1]
+    val2 = df2['VALOR REVENDA (R$/L)'].iloc[-1]
+    
+    if val1 < val2:
+        desc = f"{est1} é mais barato que {est2} atualmente."
+    else:
+        desc = f"{est2} é mais barato que {est1} atualmente."
+        
+    return fig, desc
+
+# Indicators (Faltava no seu código, coloquei placeholders para não quebrar)
+@app.callback(
+    [Output('card1_indicators', 'figure'),
+     Output('card2_indicators', 'figure')],
+    [Input('dataset', 'data'),
+    Input(ThemeSwitchAIO.ids.switch("theme"), "value")]
+)
+def indicators(data, toggle):
+    template = template_theme1 if toggle else template_theme2
+    # Aqui entraria a lógica dos indicadores. 
+    # Coloquei figuras vazias com texto só para o código rodar sem erro.
+    fig1 = go.Figure()
+    fig1.update_layout(template=template, title="Indicador 1")
+    fig2 = go.Figure()
+    fig2.update_layout(template=template, title="Indicador 2")
+    return fig1, fig2
+
+if __name__ == '__main__':
+    app.run_server(debug=True)

@@ -27,7 +27,7 @@ main_config = {
 
 # ===== Carregamento ULTRA LEVE (Leitura do Parquet) ====== #
 try:
-    # AQUI ESTÁ A DIFERENÇA: Lê o arquivo .parquet (binário leve)
+    # AQUI ESTÁ O SEGREDO: Lê o arquivo binário leve
     df_main = pd.read_parquet("data_gas_otimizado.parquet")
     # Garante a ordenação
     df_main = df_main.sort_values(by='DATA', ascending=True)
@@ -55,7 +55,7 @@ app.layout = dbc.Container([
             dbc.Card([
                 dbc.CardBody([
                     html.H4("Gasolina Dashboard", style={"font-weight": "bold"}),
-                    html.P("Versão Final (Parquet)"), # Mudei o texto para você identificar
+                    html.P("Versão Final (Parquet)"), # O TÍTULO VAI MUDAR PARA ESTE AQUI
                     ThemeSwitchAIO(aio_id="theme", themes=[url_theme1, url_theme2]),
                     dbc.Button("Portfólio", href="https://dashboard-fabio-gasolina.onrender.com", target="_blank", size="sm", style={'margin-top': '5px'})
                 ])

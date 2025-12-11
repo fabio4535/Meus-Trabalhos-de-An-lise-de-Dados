@@ -16,28 +16,26 @@ dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates@V1.0.4
 app = dash.Dash(__name__, external_stylesheets=[url_theme1, dbc_css])
 server = app.server
 
-# Configurações de travamento visual (StaticPlot)
+# === TRAVAMENTO TOTAL DO MOUSE ===
+# staticPlot: True (Vira imagem)
+# hovermode: False (Desliga a linha que segue o mouse)
 config_travada = {"staticPlot": True, "displayModeBar": False}
-tab_card = {'height': '100%'}
 main_config = {
-    "hovermode": "x unified",
+    "hovermode": False, # DESLIGUEI O EFEITO DE MOUSE AQUI
+    "dragmode": False,
     "legend": {"yanchor":"top", "y":0.9, "xanchor":"left", "x":0.1, "title": {"text": None}, "font" :{"color":"white"}, "bgcolor": "rgba(0,0,0,0.5)"},
     "margin": {"l":0, "r":0, "t":10, "b":0}
 }
+tab_card = {'height': '100%'}
 
-# ===== Carregamento ULTRA LEVE (Leitura do Parquet) ====== #
+# ===== Carregamento ====== #
 try:
-    # AQUI ESTÁ O SEGREDO: Lê o arquivo binário leve
     df_main = pd.read_parquet("data_gas_otimizado.parquet")
-    # Garante a ordenação
     df_main = df_main.sort_values(by='DATA', ascending=True)
-
-except Exception as e:
-    print(f"Erro ao ler Parquet: {e}")
-    # Cria dataframe vazio para o site não cair se der erro
+except:
     df_main = pd.DataFrame(columns=['ANO', 'REGIÃO', 'ESTADO', 'VALOR REVENDA (R$/L)', 'DATA'])
 
-# Listas para filtros
+# Listas
 anos_disp = sorted(df_main['ANO'].unique()) if not df_main.empty else []
 regioes_disp = df_main['REGIÃO'].unique() if not df_main.empty else []
 estados_disp = df_main['ESTADO'].unique() if not df_main.empty else []
@@ -47,15 +45,14 @@ val_regiao = regioes_disp[0] if len(regioes_disp) > 0 else ""
 val_est1 = estados_disp[0] if len(estados_disp) > 0 else ""
 val_est2 = estados_disp[1] if len(estados_disp) > 1 else ""
 
-
-# =========  Layout =========== #
+# =========  Layout (Sem botão Play e Compacto) =========== #
 app.layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
                     html.H4("Gasolina Dashboard", style={"font-weight": "bold"}),
-                    html.P("Versão Final (Parquet)"), # O TÍTULO VAI MUDAR PARA ESTE AQUI
+                    html.P("Modo Estátua (Sem Mouse)"), # TÍTULO NOVO
                     ThemeSwitchAIO(aio_id="theme", themes=[url_theme1, url_theme2]),
                     dbc.Button("Portfólio", href="https://dashboard-fabio-gasolina.onrender.com", target="_blank", size="sm", style={'margin-top': '5px'})
                 ])
@@ -102,10 +99,13 @@ app.layout = dbc.Container([
                 ])
             ], style=tab_card)
         ], md=4)
-    ], className='g-2 my-2')
-], fluid=True)
+    ], className='g-2 my-2'),
+    
+    # REMOVI O SLIDER E O BOTÃO PLAY PARA LIMPAR A TELA
 
-# ======== Callbacks ========== #
+], fluid=True, style={'min-height': '100vh'}) # Tenta ocupar a tela toda
+
+# ======== Callbacks (Sem alterações lógicas) ========== #
 @app.callback(
     Output('static-maxmin', 'figure'),
     [Input(ThemeSwitchAIO.ids.switch("theme"), "value")]
@@ -116,8 +116,7 @@ def func(toggle):
     max_val = df_main.groupby(['ANO'])['VALOR REVENDA (R$/L)'].max()
     min_val = df_main.groupby(['ANO'])['VALOR REVENDA (R$/L)'].min()
     final_df = pd.concat([max_val, min_val], axis=1)
-    final_df.columns = ['Máximo', 'Mínimo']
-    fig = px.line(final_df, x=final_df.index, y=final_df.columns, template=template)
+    fig = px.line(final_df, template=template)
     fig.update_layout(main_config, height=150, xaxis_title=None, yaxis_title=None, transition={'duration': 0})
     return fig
 

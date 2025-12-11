@@ -16,7 +16,7 @@ dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates@V1.0.4
 app = dash.Dash(__name__, external_stylesheets=[url_theme1, dbc_css])
 server = app.server
 
-# Configurações de travamento (Imagem Estática)
+# Configurações de travamento
 config_travada = {"staticPlot": True, "displayModeBar": False}
 tab_card = {'height': '100%'}
 main_config = {
@@ -26,7 +26,7 @@ main_config = {
     "margin": {"l":0, "r":0, "t":10, "b":0}
 }
 
-# ===== Carregamento Parquet ====== #
+# ===== Carregamento ====== #
 try:
     df_main = pd.read_parquet("data_gas_otimizado.parquet")
     df_main = df_main.sort_values(by='DATA', ascending=True)
@@ -49,8 +49,8 @@ app.layout = dbc.Container([
             dbc.Card([
                 dbc.CardBody([
                     html.H4("Gasolina Dashboard", style={"font-weight": "bold"}),
-                    # Título novo para confirmação
-                    html.P("Ordem Alfabética (Sem Escada)"), 
+                    # Título novo
+                    html.P("Barras em Pé (Verticais)"), 
                     ThemeSwitchAIO(aio_id="theme", themes=[url_theme1, url_theme2]),
                     dbc.Button("Portfólio", href="https://dashboard-fabio-gasolina.onrender.com", target="_blank", size="sm", style={'margin-top': '5px'})
                 ])
@@ -100,7 +100,7 @@ app.layout = dbc.Container([
     ], className='g-2 my-2')
 ], fluid=True)
 
-# ======== Callbacks (MUDANÇA VISUAL AQUI) ========== #
+# ======== Callbacks (MUDANÇA PARA VERTICAL) ========== #
 @app.callback(
     Output('static-maxmin', 'figure'),
     [Input(ThemeSwitchAIO.ids.switch("theme"), "value")]
@@ -125,18 +125,18 @@ def graph1(ano, regiao, toggle):
     
     df_filtered = df_main[df_main.ANO == str(ano)]
     
-    # MUDANÇA 1: Ordenar por NOME (Região/Estado) e não por Preço
-    # Isso quebra a "escada" visual
-    dff_regiao = df_filtered.groupby(['ANO', 'REGIÃO'])['VALOR REVENDA (R$/L)'].mean().reset_index().sort_values('REGIÃO', ascending=False)
-    dff_estado = df_filtered[df_filtered.REGIÃO == regiao].groupby(['ANO', 'ESTADO'])['VALOR REVENDA (R$/L)'].mean().reset_index().sort_values('ESTADO', ascending=False)
+    # Ordenação por nome
+    dff_regiao = df_filtered.groupby(['ANO', 'REGIÃO'])['VALOR REVENDA (R$/L)'].mean().reset_index().sort_values('REGIÃO')
+    dff_estado = df_filtered[df_filtered.REGIÃO == regiao].groupby(['ANO', 'ESTADO'])['VALOR REVENDA (R$/L)'].mean().reset_index().sort_values('ESTADO')
 
-    # MUDANÇA 2: Cor Laranja (color_discrete_sequence=['orange'])
-    fig1 = px.bar(dff_regiao, x='VALOR REVENDA (R$/L)', y='REGIÃO', orientation='h', text_auto='.2f', template=template, color_discrete_sequence=['orange'])
-    fig2 = px.bar(dff_estado, x='VALOR REVENDA (R$/L)', y='ESTADO', orientation='h', text_auto='.2f', template=template, color_discrete_sequence=['orange'])
+    # MUDANÇA TOTAL: Inverti X e Y para ficar EM PÉ (Vertical)
+    # orientation='v' (Vertical)
+    fig1 = px.bar(dff_regiao, x='REGIÃO', y='VALOR REVENDA (R$/L)', orientation='v', text_auto='.2f', template=template)
+    fig2 = px.bar(dff_estado, x='ESTADO', y='VALOR REVENDA (R$/L)', orientation='v', text_auto='.2f', template=template)
     
     for fig in [fig1, fig2]:
         fig.update_layout(main_config, height=140, xaxis_title=None, yaxis_title=None, transition={'duration': 0})
-        fig.update_xaxes(showticklabels=False)
+        fig.update_xaxes(showticklabels=True) # Mostra o nome embaixo
         fig.update_yaxes(showticklabels=False)
     return fig1, fig2
 

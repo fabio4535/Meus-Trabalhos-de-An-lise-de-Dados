@@ -36,7 +36,7 @@ anos_disp = sorted(df_barras['ANO'].unique()) if not df_barras.empty else []
 regioes_disp = df_barras['REGIÃO'].unique() if not df_barras.empty else []
 
 val_ano = anos_disp[0] if anos_disp else ""
-val_regiao = regioes_disp[0] if regioes_disp else ""
+val_regiao = regioes_disp[0] if len(regioes_disp) > 0 else ""
 
 # Layout IDÊNTICO ao Teste de Estabilidade (Sem a parte de baixo)
 app.layout = dbc.Container([
